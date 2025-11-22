@@ -312,12 +312,6 @@ class NotologEditor(QMainWindow):
         # Line numbers within the document
         self.line_numbers = None  # type: Union[LineNumbers, None]
 
-        # Toolbar
-        self.toolbar = None  # type: Union[ToolBar, QToolBar, None]
-
-        # Statusbar
-        self.statusbar = None  # type: Union[StatusBar, QStatusBar, None]
-
         # File navigation history manager instance
         self.history_manager = None  # type: Union[FileHistoryManager, None]
 
@@ -328,7 +322,6 @@ class NotologEditor(QMainWindow):
         self.cursor_pos = 0  # Cursor position
 
         # Dialogs
-        self.ai_assistant = None  # type: Union[QDialog, None]
         self.color_picker = None  # type: Union[QDialog, None]
 
         self.loop = asyncio.get_event_loop()
@@ -388,7 +381,7 @@ class NotologEditor(QMainWindow):
             QKeySequence(Qt.KeyboardModifier.ControlModifier | Qt.Key.Key_F),  # noqa
             self,
         )
-        shortcut_search.activated.connect(self.search_text)
+        shortcut_search.activated.connect(self.tree_filter.setFocus)
 
     def init_font(self):
         # Use default ratio
@@ -1002,6 +995,9 @@ class NotologEditor(QMainWindow):
                 self.tree_view, pos
             ),
         )
+
+        self.file_tree = file_tree
+        self.tree_filter = file_tree.get_tree_filter()
 
         # Retrieve and update tree's list view
         self.tree_view = file_tree.get_list_view()
@@ -2208,25 +2204,36 @@ class NotologEditor(QMainWindow):
         # Clear all previously set menus every time to allow update or hide the actions
         menubar.clear()
 
-        action = QAction("Odpri mapo", self)
-        action.setStatusTip("Open folder for searching...")
+        action = QAction("Odpri ...", self)
+        action.setStatusTip("Odpri mapo za iskanje")
         action.triggered.connect(self.action_open_file)
         menubar.addAction(action)
 
         action = QAction("Nova datoteka", self)
-        action.setStatusTip("Open folder for searching...")
+        action.setStatusTip("Ustvari novo datoteko")
         action.triggered.connect(self.action_new_file)
         menubar.addAction(action)
 
-        action = QAction("Shrani datoteke", self)
-        action.setStatusTip("Open folder for searching...")
+        action = QAction("Shrani datoteko", self)
+        action.setStatusTip("Shrani datoteko")
         action.triggered.connect(self.action_save_file)
         menubar.addAction(action)
 
+        action = QAction("Izbriši datoteko", self)
+        action.setStatusTip("Izbriši datoteko")
+        action.triggered.connect(self.action_delete_file)
+        menubar.addAction(action)
+
         action = QAction("Pomoč", self)
-        action.setStatusTip("Open folder for searching...")
+        action.setStatusTip("Pomoč")
         action.triggered.connect(self.action_about)
         menubar.addAction(action)
+
+    def action_delete_file(self) -> bool:
+        try:
+            self.delete_file_dialog(self.get_current_file_path())
+        except Exception as e:
+            print("Napaka pri brisanju datoteke:", e)
 
     def action_new_file(self, content: str = None) -> bool:
         """
@@ -2240,7 +2247,7 @@ class NotologEditor(QMainWindow):
             self.toggle_mode()
 
         i = 1
-        new_file_name_tpl = "new-document-%d.md"
+        new_file_name_tpl = "nova-datoteka-%d.md"
         # Find the file name that is not exist
         while (
             file_path := os.path.join(self.get_tree_active_dir(), new_file_name_tpl % i)
@@ -2300,8 +2307,8 @@ class NotologEditor(QMainWindow):
             # Also can be: os.path.expanduser("~") or QDir.currentPath()
             dir=os.path.expanduser(self.get_current_file_path(is_base=True)),
             # Filter accepts possible file types to show
-            filter="Text Files (%s);;All Files (*)"
-            % " ".join(["*." + ext for ext in self.supported_file_extensions]),
+            # filter="Tekstovne datoteke (%s);;All Files (*)"
+            # % " ".join(["*." + ext for ext in self.supported_file_extensions]),
             # QFileDialog.Option.ReadOnly
             # https://doc.qt.io/qt-6/qfiledialog.html#Option-enum
             options=QFileDialog.Option.DontUseCustomDirectoryIcons,
@@ -2834,41 +2841,6 @@ class NotologEditor(QMainWindow):
                 parent=self,
             )
 
-    def action_ai_assistant(self) -> None:
-        """
-        Action: AI assistant.
-        """
-
-        self.logger.info("The AI assistant has been launched.")
-
-        # Save any unsaved changes before calling a dialog
-        self.save_active_file(clear_after=False)
-
-        if self.ai_assistant:
-            # Restores the window if it was minimized (optional)
-            if self.ai_assistant.isMinimized() or self.ai_assistant.isHidden():
-                self.ai_assistant.showNormal()
-
-            # Raise the dialog above other widgets
-            self.ai_assistant.raise_()
-            self.ai_assistant.activateWindow()
-            return
-
-        self.ai_assistant = AIAssistant(parent=self)
-        # To update icon within toolbar before dialog
-        self.create_icons_toolbar(refresh=True)
-        # Run dialog
-        # self.ai_assistant.exec()  # Modal
-        self.ai_assistant.show()
-        # Set up dialog closing event
-        self.ai_assistant.dialog_closed.connect(self.close_ai_assistant)
-
-    def close_ai_assistant(self):
-        # Unset dialog var
-        self.ai_assistant = None
-        # To update icon within toolbar after dialog
-        self.create_icons_toolbar(refresh=True)
-
     def action_settings(self):
         """
         Settings.
@@ -2929,47 +2901,6 @@ class NotologEditor(QMainWindow):
 
         if callable(callback):
             callback()
-
-    def action_check_for_updates(self) -> None:
-        """
-        Check the App updates here.
-        """
-
-        self.logger.debug("Checking for updates...")
-
-        update_helper = UpdateHelper()
-        update_helper.new_version_check_response.connect(self.check_for_updates_handler)
-        update_helper.check_for_updates()
-
-    def check_for_updates_handler(self, res_json: dict):
-        # Show popup with update data
-        if "status" in res_json and "msg" in res_json:
-            MessageBox(
-                text=res_json["msg"],
-                icon_type=(1 if res_json["status"] == UpdateHelper.STATUS_OK else 2),
-                parent=self,
-            )
-        else:
-            self.logger.warning("Check for update response data in a wrong format")
-
-    def action_bug_report(self) -> None:
-        """
-        Send bug report here.
-        Or, redirect to the repository's page to create a task.
-        """
-
-        self.logger.debug("Sending bug report...")
-
-        url = AppConfig().get_repository_github_bug_report_url()
-
-        self.common_dialog(
-            self.lexemes.get("dialog_open_link_title"),
-            self.lexemes.get(name="dialog_open_link_text", url=url),
-            # Open url with system browser
-            callback=lambda dialog_callback:
-            # Open link in a system browser and run dialog's callback
-            (QDesktopServices.openUrl(url), dialog_callback()),
-        )
 
     def action_about(self) -> None:
         """
@@ -3289,29 +3220,6 @@ class NotologEditor(QMainWindow):
         file_header, _ = FileHeader().load_file(file_path)
         return file_header.is_file_encrypted()
 
-    def search_text(self) -> None:
-        """
-        Search text in the content view.
-        If any text selected and Ctrl + F pressed autofill the search field with it.
-        """
-
-        if self.get_mode() == Mode.EDIT:
-            # Edit widget
-            edit_widget = self.get_edit_widget()  # type: Union[EditWidget, QPlainTextEdit]
-            selected_text = edit_widget.textCursor().selectedText()
-        else:
-            # View widget
-            view_widget = self.get_view_widget()  # type: Union[ViewWidget, QTextBrowser]
-            selected_text = view_widget.textCursor().selectedText()
-
-        self.logger.debug('Searching text "%s"' % selected_text)
-
-        if hasattr(self, "toolbar") and hasattr(self.toolbar, "search_form"):
-            self.toolbar.search_form.set_text(selected_text)
-            self.toolbar.search_form.set_focus()
-
-        self.action_search_next()
-
     def reload_active_file(self) -> None:
         """
         Re-load current file's content.
@@ -3350,11 +3258,6 @@ class NotologEditor(QMainWindow):
 
         # Save the file
         write_res = file_helper.save_file(file_path, content)
-
-        # if write_res is False:
-        #     Display a warning in the status bar if the save fails
-        #     if hasattr(self, "statusbar"):
-        #         self.statusbar.show_warning(visible=True)
 
         return write_res
 
