@@ -109,6 +109,45 @@ def get_tags_for_chunk(chunk_id: int):
     conn.close()
     return rows
 
+def find_tag_by_name(name: str):
+    """
+    Poišče tag po imenu.
+    Vrne id in ime taga ali None, če taga ni.
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT id, name FROM tags WHERE name = ?", (name,))
+    row = cur.fetchone()
+    conn.close()
+    return row  # (id, name) ali None
+
+
+def get_chunks_by_tag(tag_name: str):
+    """
+    Vrne vse chunk-e (file_path, start_idx, end_idx) za podani tag.
+    """
+    tag = find_tag_by_name(tag_name)
+    if not tag:
+        return []  # tag ne obstaja
+
+    tag_id = tag[0]
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT chunks.file_path, chunks.start_idx, chunks.end_idx
+        FROM chunks
+        JOIN chunk_tags ON chunks.id = chunk_tags.chunk_id
+        WHERE chunk_tags.tag_id = ?
+        ORDER BY chunks.file_path, chunks.start_idx
+        """,
+        (tag_id,)
+    )
+    rows = cur.fetchall()
+    conn.close()
+    return rows  # lista tuple-ov (file_path, start_idx, end_idx)
+
+
 
 if __name__ == "__main__":
     init_db()

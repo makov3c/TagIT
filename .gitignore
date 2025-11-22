@@ -57,3 +57,4 @@ Thumbs.db
 .pydevproject
 .project
 .settings
+scripts/seed_newdoc_tags.py
