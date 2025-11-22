@@ -27,7 +27,6 @@ License: MIT License
 For detailed instructions and project information, please see the repository's README.md.
 """
 
-
 import argparse
 import logging
 import asyncio
@@ -56,28 +55,43 @@ os.environ["QT_STYLE_OVERRIDE"] = "Fusion"
 def main():
     # Check if any command line arguments are present
     if len(sys.argv) > 1:
+
         class NotologArgumentParser(argparse.ArgumentParser):
             def print_help(self, file=None):
                 # Default command line intro
-                print("\033[90m", end='')
-                print("░░░░░░░░░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓▓███"
-                      "\033[97m NOTOLOG \033[90m"
-                      "███▓▓▓▓▓▓▓▒▒▒▒▒▒▒▒▒▒▒▒▒░░░░░░░░░░░░░░░░░░░")
-                print("\033[92m", end='')
-                print("╔═══════════════════════════════════════════════════════════════════════════════════════════╗")
-                print("║ Notolog Editor is a GUI application. Simply run the command without any options to start. ║")
-                print("╚═══════════════════════════════════════════════════════════════════════════════════════════╝")
+                print("\033[90m", end="")
+                print(
+                    "░░░░░░░░░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓▓███"
+                    "\033[97m NOTOLOG \033[90m"
+                    "███▓▓▓▓▓▓▓▒▒▒▒▒▒▒▒▒▒▒▒▒░░░░░░░░░░░░░░░░░░░"
+                )
+                print("\033[92m", end="")
+                print(
+                    "╔══════════════════════════════════════════════════════════════════════════════════╗"
+                )
+                print(
+                    "║ TagIT is a GUI application. Simply run the command without any options to start. ║"
+                )
+                print(
+                    "╚══════════════════════════════════════════════════════════════════════════════════╝"
+                )
                 print("\033[0m")
                 # Call the super method to print the standard help message
                 super().print_help()
 
         # Create the parser
-        parser = NotologArgumentParser(description="Notolog Editor: An open-source Markdown editor built with Python.")
+        parser = NotologArgumentParser(
+            description="TagIT: pomočnik za navigacijo po datotekah."
+        )
 
         # Add a version argument
-        parser.add_argument('-v', '--version', action='version',
-                            version=f'{AppConfig().get_app_name()} {AppConfig().get_app_version()}',
-                            help='show the version information and exit')
+        parser.add_argument(
+            "-v",
+            "--version",
+            action="version",
+            version=f"{AppConfig().get_app_name()} {AppConfig().get_app_version()}",
+            help="show the version information and exit",
+        )
 
         # Parse the arguments
         # parser.parse_args()
@@ -95,9 +109,11 @@ def main():
     format='%(asctime)s:%(levelname)s:%(name)s:%(message)s'
     """
     logger_level = AppConfig().get_logger_level()
-    logging.basicConfig(level=logger_level, format='[%(name)s] %(funcName)s: %(levelname)s: %(message)s')
+    logging.basicConfig(
+        level=logger_level, format="[%(name)s] %(funcName)s: %(levelname)s: %(message)s"
+    )
 
-    logger = logging.getLogger('notolog')
+    logger = logging.getLogger("notolog")
 
     logger.info("%s v%s" % (AppConfig().get_app_name(), AppConfig().get_app_version()))
     logger.info("%s" % (AppConfig().get_app_license()))
@@ -132,7 +148,9 @@ def main():
     app.setDesktopSettingsAware(False)
 
     # E.g. /usr/bin and /usr/bin/python3.11
-    logger.debug(f'Application dir path "{app.applicationDirPath()}"; file path "{app.applicationFilePath()}"')
+    logger.debug(
+        f'Application dir path "{app.applicationDirPath()}"; file path "{app.applicationFilePath()}"'
+    )
 
     # Init the application fonts
     FontLoader.init_fonts(app)
@@ -159,7 +177,7 @@ def main():
         loop.run_until_complete(app_close_event.wait())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Debug:
     # async def main(): ...
     # asyncio.run(main(), debug=True)
