@@ -1989,10 +1989,6 @@ class NotologEditor(QMainWindow):
 
         self.logger.debug(f"Text changed signal from {self.sender()}")
 
-        # Enable the save button in the toolbar, even if no changes were detected
-        if hasattr(self.toolbar, "toolbar_save_button"):
-            self.toolbar.toolbar_save_button.setDisabled(False)
-
         # Asynchronous highlighting: Schedules an async task to re-highlight a portion of the document.
         # Avoid checking 'full_rehighlight' here, as the event might occur after block data parameters have changed.
         if hasattr(self, "async_highlighter") and self.async_highlighter:
@@ -3110,10 +3106,6 @@ class NotologEditor(QMainWindow):
         self.content = content
         self.header = header
         # Update the content size label in the statusbar
-        # if hasattr(self, "statusbar"):
-        #     self.statusbar["data_size_label"].setText(
-        #         "%s" % file_helper.size_f(len(self.content))
-        #     )
         if self.get_mode() == Mode.EDIT:
             self.load_content_edit(self.header, self.content)
             # Restore cursor applied later upon document 'content_set' event
@@ -3479,13 +3471,6 @@ class NotologEditor(QMainWindow):
         edit_widget = self.get_edit_widget()  # type: Union[EditWidget, QPlainTextEdit]
         file_content = edit_widget.toPlainText()
 
-        # If there are no changes to save, do nothing.
-        if self.content == file_content:
-            # Disable the save button in the toolbar if it was active
-            if hasattr(self.toolbar, "toolbar_save_button"):
-                self.toolbar.toolbar_save_button.setDisabled(True)
-            return None
-
         # Handle the case where the file no longer exists and cannot be saved
         if os.path.exists(current_file_path) and not os.access(
             current_file_path, os.W_OK
@@ -3574,10 +3559,6 @@ class NotologEditor(QMainWindow):
                     callback=self.toggle_save_timer,
                     parent=self,
                 )
-
-            # Disable the save button in the toolbar
-            if hasattr(self.toolbar, "toolbar_save_button"):
-                self.toolbar.toolbar_save_button.setDisabled(save_result)
 
             return save_result
 
