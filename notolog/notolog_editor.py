@@ -569,11 +569,6 @@ class NotologEditor(QMainWindow):
             # Clear search fields and statuses
             self.action_search_clear()
 
-        if hasattr(self, "toolbar"):  # For updates only
-            self.create_icons_toolbar(refresh=True)
-            # Re-draw main menu as well, as some action set there
-            self.draw_menu()
-
     def init_encrypt_helper(
         self, enc_password: EncPassword = None, salt: str = None, iterations: int = None
     ) -> EncHelper:
@@ -2232,58 +2227,6 @@ class NotologEditor(QMainWindow):
         action.setStatusTip("Open folder for searching...")
         action.triggered.connect(self.action_about)
         menubar.addAction(action)
-
-    def get_toolbar_actions(self) -> List[Dict[str, Any]]:
-        """
-        Main toolbar items map for convenience.
-        """
-        return []
-
-    def get_toolbar_action_by_name(self, name):
-        """
-        Get particular action config by name.
-        """
-        for action in self.get_toolbar_actions():
-            if "name" in action and action["name"] == name:
-                return action
-
-    def create_icons_toolbar(self, refresh: bool = False) -> None:
-        """
-        Main toolbar with icons.
-        """
-        if refresh and hasattr(self, "toolbar"):
-            self.removeToolBar(self.toolbar)
-        """
-        Or Toolbar element:
-        toolbar = self.addToolBar("Toolbar")
-        """
-        self.toolbar = ToolBar(
-            parent=self,
-            actions=self.get_toolbar_actions(),
-            refresh=lambda: self.create_icons_toolbar(
-                refresh=True
-            ),  # Action to call if refresh needed
-        )
-
-        # if hasattr(self.toolbar, "search_form"):
-        #     # Connect actions to the search field
-        #     self.toolbar.search_form.textChanged.connect(self.action_search_on)
-        #     self.toolbar.search_form.returnPressed.connect(self.action_search_next)
-        #     self.toolbar.search_form.searchButtonClear.connect(self.action_search_clear)
-        #     self.toolbar.search_form.searchButtonNext.connect(self.action_search_next)
-        #     self.toolbar.search_form.searchButtonPrev.connect(self.action_search_prev)
-        #     self.toolbar.search_form.caseSensitive.connect(
-        #         self.action_search_case_sensitive
-        #     )
-        #     # And adjust appearance
-        #     self.toolbar.search_form.set_maximum_width(self.weight_to_px_uno * 2)
-
-        # self.addToolBar(self.toolbar)
-
-    def create_status_toolbar(self) -> None:
-        # Statusbar element
-        self.statusbar = StatusBar(self)
-        # self.setStatusBar(self.statusbar)
 
     def action_new_file(self, content: str = None) -> bool:
         """
