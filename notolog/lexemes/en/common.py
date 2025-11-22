@@ -1,6 +1,6 @@
 # English lexemes common.py
 lexemes = {
-    "app_title": "Notolog Editor",
+    "app_title": "TagIT",
     "app_title_with_sub": "{app_title} - {sub_title}",
 
     "tree_filter_input_placeholder_text": "Quick filter",
