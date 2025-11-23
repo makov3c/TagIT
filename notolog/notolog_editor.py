@@ -2465,7 +2465,15 @@ class NotologEditor(QMainWindow):
         # If this was a user-initiated save (Ctrl+S) and save succeeded, trigger tagging for markdown files
         try:
             current_path = file_path or self.get_current_file_path()
-            if manual and save_result and current_path and current_path.lower().endswith('.md'):
+            # Trigger tagging only for user-initiated saves (Ctrl+S),
+            # when in EDIT mode and saving a markdown file.
+            if (
+                manual
+                and save_result
+                and current_path
+                and current_path.lower().endswith(".md")
+                and self.get_mode() == Mode.EDIT
+            ):
                 try:
                     init_db()
                 except Exception:
