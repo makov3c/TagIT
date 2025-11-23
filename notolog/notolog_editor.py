@@ -963,6 +963,7 @@ class NotologEditor(QMainWindow):
         """
 
         # Initialize file system model for tree navigation
+        self.prev_filetree = QDir.currentPath()
         self.file_model = FileSystemModel()
         self.file_model.setRootPath(
             QDir.currentPath()
@@ -2970,7 +2971,21 @@ class NotologEditor(QMainWindow):
         editor.setFocus()
 
     def action_restore_path(self):
-        pass
+        self.save_active_file(clear_after=False)
+        print("RESTORE")
+
+        if not self.prev_filetree:
+            return
+
+        # Če smo že na root-u, ne delaj nič
+        if self.prev_filetree == self.get_tree_active_dir():
+            return
+
+        self.logger.debug(f"Navigating to prev. folder: {self.prev_filetree}")
+
+        self.tree_filter.setText("")
+        self.set_current_path(self.prev_filetree)
+        self.file_tree.change_model(self.file_model, "filetree")
 
     def action_nav_select_file(self, index) -> None:
         """
@@ -2979,6 +2994,10 @@ class NotologEditor(QMainWindow):
 
         # Save any unsaved changes
         self.save_active_file(clear_after=False)
+
+        if self.filter_mode.val == "hashtag":
+            self.action_nav_jump_to_file(index)
+            return
 
         """
         Get file path by index:
@@ -3012,6 +3031,7 @@ class NotologEditor(QMainWindow):
                 )
         if os.path.isdir(file_path):
             self.logger.debug("Dir selected within the tree '%s'" % file_path)
+            self.prev_filetree = self.get_current_file_path()
             self.set_current_path(file_path)
 
     def action_nav_up_folder(self) -> None:
@@ -3032,6 +3052,7 @@ class NotologEditor(QMainWindow):
 
         self.logger.debug(f"Navigating to parent folder: {parent_path}")
 
+        self.prev_filetree = self.get_current_file_path()
         self.set_current_path(parent_path)
 
     def load_content(self, header: FileHeader, content: str) -> None:
