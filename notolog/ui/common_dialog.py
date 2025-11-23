@@ -18,27 +18,34 @@ For detailed instructions and project information, please see the repository's R
 """
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDialog, QLabel, QVBoxLayout, QDialogButtonBox, QSizePolicy
+from PySide6.QtWidgets import (
+    QDialog,
+    QLabel,
+    QVBoxLayout,
+    QDialogButtonBox,
+    QSizePolicy,
+)
 from PySide6.QtGui import QFontMetrics
 
 import logging
 
 
 class CommonDialog(QDialog):
-
-    def __init__(self, title=str, text=str, callback=None, reject_callback=None, parent=None):
+    def __init__(
+        self, title=str, text=str, callback=None, reject_callback=None, parent=None
+    ):
         super().__init__(parent)
 
         self.parent = parent
 
-        if self.parent and hasattr(self.parent, 'font'):
+        if self.parent and hasattr(self.parent, "font"):
             # Apply the font from the main window to this dialog
             self.setFont(self.parent.font())
 
-        self.logger = logging.getLogger('common_dialog')
+        self.logger = logging.getLogger("common_dialog")
 
         self.setWindowTitle(str(title))
-        self.setObjectName('common_dialog')
+        self.setObjectName("common_dialog")
 
         # Set dialog size derived from the main window size
         """
@@ -53,7 +60,7 @@ class CommonDialog(QDialog):
             self.setMinimumSize(self.sizeHint())
 
         label = QLabel()
-        label.setObjectName('common_label')
+        label.setObjectName("common_label")
         label.setMargin(10)  # Set vertical padding for the dialog label
         label.setText(str(text))
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -69,10 +76,15 @@ class CommonDialog(QDialog):
         """
 
         button_box = QDialogButtonBox()
-        button_box.setObjectName('button_box')
+        button_box.setObjectName("button_box")
         button_box.setOrientation(Qt.Orientation.Horizontal)
-        button_box.setStandardButtons(QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Yes)
+        button_box.setStandardButtons(
+            QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Yes
+        )
         button_box.setCenterButtons(True)
+
+        button_box.button(QDialogButtonBox.Yes).setText("Da")
+        button_box.button(QDialogButtonBox.Cancel).setText("Prekliči")
 
         # not QVBoxLayout(self) to avoid: 'Attempting to add QLayout "" to ... "", which already has a layout
         layout = QVBoxLayout()
@@ -85,13 +97,13 @@ class CommonDialog(QDialog):
         if callable(callback):
             button_box.accepted.connect(lambda: callback(self.reject))
         else:
-            self.logger.debug('No callback method was provided for the dialog!')
+            self.logger.debug("No callback method was provided for the dialog!")
             button_box.accepted.connect(self.close)
 
         if callable(reject_callback):
             button_box.rejected.connect(lambda: reject_callback(self.reject))
         else:
-            self.logger.debug('No reject callback method was provided for the dialog!')
+            self.logger.debug("No reject callback method was provided for the dialog!")
             button_box.rejected.connect(self.reject)
 
     def resizeEvent(self, event) -> None:
