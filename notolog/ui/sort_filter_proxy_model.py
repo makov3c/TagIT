@@ -25,11 +25,10 @@ from ..helpers import file_helper
 
 
 class SortFilterProxyModel(QSortFilterProxyModel):
-
     def __init__(self, extensions: list = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.logger = logging.getLogger('sort_filter_proxy_model')
+        self.logger = logging.getLogger("sort_filter_proxy_model")
 
         self._extensions = extensions  # Allow specific file extensions
 
@@ -60,12 +59,14 @@ class SortFilterProxyModel(QSortFilterProxyModel):
         if not index.isValid():
             return False
 
-        regex = self.filterRegularExpression()  # Retrieve regex set with setFilterRegularExpression()
+        regex = (
+            self.filterRegularExpression()
+        )  # Retrieve regex set with setFilterRegularExpression()
         if regex and regex.pattern():
             re = QRegularExpression(regex)
             match = re.match(index.data())
             if not (match.capturedTexts() and match.captured()):
-                self.logger.debug('Filter row: %s' % index.data())
+                self.logger.debug("Filter row: %s" % index.data())
                 return False
 
         if source_model.isDir(index):  # noqa
@@ -73,7 +74,11 @@ class SortFilterProxyModel(QSortFilterProxyModel):
         else:
             file_path = source_model.filePath(index)  # noqa
             extension = file_path.split(".")[-1]
-            return not self._extensions or file_helper.remove_trailing_numbers(extension).lower() in self._extensions
+            return (
+                not self._extensions
+                or file_helper.remove_trailing_numbers(extension).lower()
+                in self._extensions
+            )
 
     def lessThan(self, left: QModelIndex, right: QModelIndex) -> bool:
         # Get the source model

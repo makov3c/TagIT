@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QLineEdit,
 )
+from PySide6.QtCore import QAbstractItemModel, QModelIndex
 
 import logging
 from typing import TYPE_CHECKING
@@ -34,6 +35,36 @@ from . import ThemeHelper
 
 if TYPE_CHECKING:
     from typing import Union  # noqa
+
+
+# class CustomItemModel(QAbstractItemModel):
+#     def __init__(self, model):
+#         super().__init__()
+#         self.model = model
+
+#     def rowCount(self, *args, **kwargs):
+#         return self.model.rowCount(*args, **kwargs)
+
+#     def columnCount(self, *args, **kwargs):
+#         return self.model.columnCount(*args, **kwargs)
+
+#     def data(self, *args, **kwargs):
+#         return self.model.data(*args, **kwargs)
+
+#     def setData(self, *args, **kwargs):
+#         return self.model.setData(*args, **kwargs)
+
+#     def index(self, *args, **kwargs):
+#         return self.model.index(*args, **kwargs)
+
+#     def parent(self, *args, **kwargs):
+#         return self.model.parent(*args, **kwargs)
+
+#     def flags(self, *args, **kwargs):
+#         return self.model.flags(*args, **kwargs)
+
+#     def setRootIndex(self, *args, **kwargs):
+#         return self.model.setRootIndex(*args, **kwargs)
 
 
 class FileTree(QWidget):
@@ -47,6 +78,8 @@ class FileTree(QWidget):
         context_menu_callback,
         action,
         back_action,
+        haction,
+        hback_action,
     ):
         super().__init__(parent)
 
@@ -59,6 +92,8 @@ class FileTree(QWidget):
         self.context_menu_callback = context_menu_callback
         self.action = action
         self.back_action = back_action
+        self.haction = haction
+        self.hback_action = hback_action
 
         if self.parent and hasattr(self.parent, "font"):
             # Apply font from the dialog instance to the label
@@ -87,17 +122,32 @@ class FileTree(QWidget):
 
             self.action = action
             self.back_action = back_action
+            self.name = "filetree"
+
+        def changeName(self, name):
+            self.name = name
 
         def keyPressEvent(self, event):
             if (
                 event.key() == Qt.Key_Return or event.key() == Qt.Key_Right
             ):  # Check if Enter key is pressed
-                current_index = self.currentIndex()
-                if current_index.isValid():
-                    self.action(current_index)
+                print(self.name)
+                if self.name == "hashtag":
+                    self.haction(current_index)
+                else:
+                    current_index = self.currentIndex()
+                    if current_index.isValid():
+                        self.action(current_index)
             if event.key() == Qt.Key_Left:
-                self.back_action()
+                if self.name == "hashtag":
+                    self.hback_action(current_index)
+                else:
+                    self.back_action()
             super().keyPressEvent(event)
+
+    def change_model(self, model, name):
+        self.list_view.changeName(name)
+        self.list_view.setModel(model)
 
     def init_ui(self):
         """

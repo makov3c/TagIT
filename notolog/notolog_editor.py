@@ -119,9 +119,13 @@ from PySide6.QtWidgets import (
     QFileSystemModel,
     QFileDialog,
 )
+from PySide6.QtCore import QStringListModel
 
 from qasync import asyncClose
 import asyncio
+
+from . import tags_db
+from .ui import ThemeHelper as ThemeHelper1
 
 # Markdown library
 import markdown
@@ -138,6 +142,7 @@ import emoji
 import os
 import time
 from typing import TYPE_CHECKING, Union, Optional, Callable, List, Dict, Any
+import re
 
 import logging
 
@@ -193,6 +198,15 @@ class NotologEditor(QMainWindow):
         "markdown.extensions.extra",  # Or 'extra'
         "markdown.extensions.toc",  # 'toc' stands for 'Table of Contents', provides anchors for header tags
     ]
+
+    class Cell:
+        val = None
+
+        def __init__(self, val):
+            self.val = val
+
+    class TagModel(QStringListModel):
+        pass
 
     def __init__(self, parent=None, **kwargs):
         super(NotologEditor, self).__init__(parent=parent)
@@ -306,6 +320,8 @@ class NotologEditor(QMainWindow):
         self.tree_proxy_model = None  # type: Union[SortFilterProxyModel, None]
         self.file_watcher = None  # type: Union[QFileSystemWatcher, None]
         self.tree_active_dir = None  # type: Union[str, None]
+        self.chunk_model = None
+        self.filter_mode = self.Cell("title")
 
         self.supported_file_extensions = ["md", "txt", "html", "enc"]
 
@@ -382,6 +398,8 @@ class NotologEditor(QMainWindow):
             self,
         )
         shortcut_search.activated.connect(self.tree_filter.setFocus)
+
+        tags_db.init_db()
 
     def init_font(self):
         # Use default ratio
@@ -990,6 +1008,8 @@ class NotologEditor(QMainWindow):
             ),
             action=self.action_nav_select_file,
             back_action=self.action_nav_up_folder,
+            haction=self.action_nav_jump_to_file,
+            hback_action=self.action_restore_path,
         )
 
         self.file_tree = file_tree
@@ -1032,13 +1052,33 @@ class NotologEditor(QMainWindow):
         )
 
         if text:
-            self.tree_proxy_model.setFilterRegularExpression(r".*?{}".format(text))
+            if re.match(r"\s*#.*", text):
+                self.filter_mode.val = "hashtag"
+                print(tags_db.get_chunks_by_tag("example"))
+                self.file_tree.change_model(
+                    self.TagModel(
+                        [
+                            f"{fn} {sidx}-{eidx}"
+                            for (fn, sidx, eidx) in tags_db.get_chunks_by_tag(text[1:])
+                        ]
+                    ),
+                    "tagmodel",
+                )
+            elif re.match(r"\s*\?.*", text):
+                self.filter_mode.val = "content"
+            else:
+                self.filter_mode.val = "title"
+                self.file_tree.change_model(self.file_model, "filetree")
+
+            self.regex = r".*?{}".format(text)
             """
             Previous approach was:
             self.tree_proxy_model.setFilterWildcard("*{}*".format(text))
             """
         else:
-            self.tree_proxy_model.setFilterRegularExpression(r"")
+            self.regex = r""
+
+        self.tree_proxy_model.setFilterRegularExpression(self.regex)
 
         # Restore active tree directory
         self.set_current_path(self.get_tree_active_dir())
@@ -1149,6 +1189,8 @@ class NotologEditor(QMainWindow):
         """
         Context menu at file tree view.
         """
+
+        print("LKJFLKSJFLKSJF")
 
         self.logger.debug("Context menu for %s" % tree_view)
 
@@ -2920,6 +2962,22 @@ class NotologEditor(QMainWindow):
 
         # Correct way, to allow closeEvent() work, do not use sys.exit(0)
         self.close()
+
+    def action_nav_jump_to_file(self, index) -> None:
+        editor = self.get_edit_widget()
+        cursor = editor.textCursor()
+        print(self.tree_view.model.data(index))
+        block = editor.document().findBlockByNumber(index.row - 1)
+        if not block.isValid():
+            return  # Bad line number
+
+        position = block.position() + (index.col - 1)
+        cursor.setPosition(position)
+        editor.setTextCursor(cursor)
+        editor.setFocus()
+
+    def action_restore_path(self):
+        pass
 
     def action_nav_select_file(self, index) -> None:
         """
