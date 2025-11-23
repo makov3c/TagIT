@@ -1,8 +1,17 @@
 import sqlite3
+
 from pathlib import Path
 
 DB_PATH = Path(__file__).parent / "database.sqlite3"
 
+
+def load_chunk_preview(file_path: str, start: int, length: int = 20) -> str:
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            f.seek(start)
+            return f.read(length)
+    except Exception:
+        return "<error reading file>"
 
 def get_connection():
     return sqlite3.connect(DB_PATH)
@@ -123,19 +132,16 @@ def find_tag_by_name(name: str):
 
 
 def get_chunks_by_tag(tag_name: str):
-    """
-    Vrne vse chunk-e (file_path, start_idx, end_idx) za podani tag.
-    """
     tag = find_tag_by_name(tag_name)
     if not tag:
-        return []  # tag ne obstaja
+        return []
 
     tag_id = tag[0]
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT chunks.file_path, chunks.start_idx, chunks.end_idx
+        SELECT chunks.id, chunks.file_path, chunks.start_idx, chunks.end_idx
         FROM chunks
         JOIN chunk_tags ON chunks.id = chunk_tags.chunk_id
         WHERE chunk_tags.tag_id = ?
@@ -145,9 +151,20 @@ def get_chunks_by_tag(tag_name: str):
     )
     rows = cur.fetchall()
     conn.close()
-    return rows  # lista tuple-ov (file_path, start_idx, end_idx)
 
+    results = []
+    for chunk_id, file_path, start_idx, end_idx in rows:
+        text_preview = load_chunk_preview(file_path, start_idx, 20)
 
+        results.append({
+            "id": chunk_id,
+            "file_path": file_path,
+            "start": start_idx,
+            "end": end_idx,
+            "preview": text_preview,
+        })
+
+    return results
 
 if __name__ == "__main__":
     init_db()
