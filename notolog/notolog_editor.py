@@ -123,6 +123,8 @@ from PySide6.QtCore import QStringListModel
 
 from qasync import asyncClose
 import asyncio
+from .llm_semantic_tagger import tag_with_llm
+from .tags_db import add_chunk, add_tag, attach_tag_to_chunk, init_db
 
 from . import tags_db
 from .ui import ThemeHelper as ThemeHelper1
@@ -390,7 +392,7 @@ class NotologEditor(QMainWindow):
         )
         # Reset 'allow save empty' dialog if save file action called explicitly
         shortcut_save.activated.connect(
-            lambda: (self.estate.allow_save_empty_reset(), self.auto_save_file())
+            lambda: (self.estate.allow_save_empty_reset(), self.action_save_file(None, True))
         )
 
         shortcut_search = QShortcut(
@@ -2310,7 +2312,18 @@ class NotologEditor(QMainWindow):
         if self.save_file_content(file_path, content):
             # Load new file content
             if file_helper.is_file_openable(file_path):
-                return self.load_file(file_path)
+                res = self.load_file(file_path)
+                # If it's a markdown file, schedule LLM tagging and persistence
+                if file_path.lower().endswith('.md'):
+                    try:
+                        init_db()
+                    except Exception:
+                        pass
+                    try:
+                        self.process_file_tags(file_path)
+                    except Exception:
+                        self.logger.warning(f"Failed to schedule tagging for {file_path}")
+                return res
             else:
                 self.logger.warning(
                     f"Permission denied when accessing the file {file_path}"
@@ -2371,7 +2384,69 @@ class NotologEditor(QMainWindow):
                 parent=self,
             )
 
-    def action_save_file(self, file_path: str = None) -> None:
+    def process_file_tags(self, file_path: str) -> None:
+        """
+        Schedule processing of the given file with the LLM tagger and persist spans/tags to DB.
+        This method is non-blocking and will run the heavy work in a background thread.
+        """
+        # Check GEMINI API key before scheduling tagging to avoid predictable failure
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            self.logger.warning(
+                f"Skipping LLM tagging for {file_path}: GEMINI_API_KEY environment variable not set"
+            )
+            return
+
+        try:
+            # Fire-and-forget async task; loop should be running under qasync when app is running
+            asyncio.create_task(self._process_file_tags_async(file_path))
+        except Exception:
+            # Fallback to running in executor if create_task fails
+            try:
+                loop = asyncio.get_event_loop()
+                loop.run_in_executor(None, tag_with_llm, file_path)
+            except Exception:
+                self.logger.warning(f"Could not schedule tagging for {file_path}")
+
+    async def _process_file_tags_async(self, file_path: str) -> None:
+        """
+        Async worker: runs `tag_with_llm` in executor and stores chunks & tags in DB.
+        """
+        loop = asyncio.get_event_loop()
+        try:
+            spans = await loop.run_in_executor(None, tag_with_llm, file_path)
+        except Exception as e:
+            self.logger.warning(f"LLM tagging failed for {file_path}: {e}")
+            return
+
+        if not spans:
+            self.logger.debug(f"No spans returned for {file_path}")
+            return
+
+        for span in spans:
+            try:
+                # Robust key mapping for start/end/name
+                start = span.get("zacetek") or span.get("start") or span.get("start_idx") or span.get("zacetek")
+                end = span.get("konec") or span.get("end") or span.get("end_idx") or span.get("konec")
+                name = span.get("oznaka") or span.get("label") or span.get("name") or "tag"
+
+                if start is None or end is None:
+                    # Skip invalid spans
+                    continue
+
+                start = int(start)
+                end = int(end)
+
+                # Persist chunk and tag using executor to avoid blocking
+                chunk_id = await loop.run_in_executor(None, add_chunk, file_path, start, end)
+                tag_id = await loop.run_in_executor(None, add_tag, name)
+                if chunk_id and tag_id:
+                    await loop.run_in_executor(None, attach_tag_to_chunk, chunk_id, tag_id)
+                    self.logger.debug(f"Attached tag '{name}' ({tag_id}) to chunk {chunk_id} in {file_path}")
+            except Exception as e:
+                self.logger.warning(f"Error saving span for {file_path}: {e}")
+
+    def action_save_file(self, file_path: str = None, manual: bool = False) -> None:
         """
         Action: Save file.
         """
@@ -2384,7 +2459,23 @@ class NotologEditor(QMainWindow):
             return
 
         # Save any unsaved changes, keep text edit field's content
-        self.save_active_file(clear_after=False)
+        save_result = self.save_active_file(clear_after=False)
+
+        # If this was a user-initiated save (Ctrl+S) and save succeeded, trigger tagging for markdown files
+        try:
+            current_path = file_path or self.get_current_file_path()
+            if manual and save_result and current_path and current_path.lower().endswith('.md'):
+                try:
+                    init_db()
+                except Exception:
+                    pass
+                try:
+                    self.process_file_tags(current_path)
+                except Exception:
+                    self.logger.warning(f"Failed to schedule tagging for {current_path}")
+        except Exception:
+            # Any unexpected error here should not interrupt save flow
+            pass
 
     def action_save_as_file(self) -> None:
         """
