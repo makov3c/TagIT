@@ -140,7 +140,6 @@ class FileTree(QWidget):
             if (
                 event.key() == Qt.Key_Return or event.key() == Qt.Key_Right
             ):  # Check if Enter key is pressed
-                print(self.name)
                 if self.name == "tagmodel":
                     current_index = self.currentIndex()
                     if current_index.isValid():
@@ -151,7 +150,7 @@ class FileTree(QWidget):
                         self.action(current_index)
             if event.key() == Qt.Key_Left:
                 if self.name == "tagmodel":
-                    self.hback_action(current_index)
+                    self.hback_action()
                 else:
                     self.back_action()
             super().keyPressEvent(event)
