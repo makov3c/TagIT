@@ -452,12 +452,6 @@ class NotologEditor(QMainWindow):
             # Refresh toolbar icons and colors
             self.create_icons_toolbar(refresh=True)
 
-            # Update search bar placeholder text if applicable
-            if hasattr(self, "toolbar") and hasattr(self.toolbar, "search_form"):
-                self.toolbar.search_form.set_placeholder_text(
-                    self.lexemes.get("search_input_placeholder_text", scope="toolbar")
-                )
-
             # Refresh the main menu
             self.draw_menu()
 
@@ -994,6 +988,8 @@ class NotologEditor(QMainWindow):
             context_menu_callback=lambda pos: self.show_tree_context_menu(
                 self.tree_view, pos
             ),
+            action=self.action_nav_select_file,
+            back_action=self.action_nav_up_folder,
         )
 
         self.file_tree = file_tree
@@ -2205,7 +2201,7 @@ class NotologEditor(QMainWindow):
         menubar.clear()
 
         action = QAction("Odpri ...", self)
-        action.setStatusTip("Odpri mapo za iskanje")
+        action.setStatusTip("Odpri mapo ali datoteko")
         action.triggered.connect(self.action_open_file)
         menubar.addAction(action)
 
@@ -2966,6 +2962,28 @@ class NotologEditor(QMainWindow):
         if os.path.isdir(file_path):
             self.logger.debug("Dir selected within the tree '%s'" % file_path)
             self.set_current_path(file_path)
+
+    def action_nav_up_folder(self) -> None:
+        """
+        Action: Open upper folder from the tree view.
+        """
+
+        # Save any unsaved changes
+        self.save_active_file(clear_after=False)
+
+        """
+        Get file path by index:
+            file_path = self.file_model.filePath(index)  # no proxy model
+        Also, the file path can be obtained like this:
+            file_path = self.tree_view.model().filePath(index)
+        * https://doc.qt.io/qt-6/qsortfilterproxymodel.html#mapToSource
+        """
+        self.logger.debug(
+            "Dir selected within the tree '%s'" % self.get_current_file_path()
+        )
+        parent_folder = os.path.basename(os.path.dirname(self.get_tree_active_dir()))
+        print(parent_folder)
+        self.set_current_path(parent_folder)
 
     def load_content(self, header: FileHeader, content: str) -> None:
         """

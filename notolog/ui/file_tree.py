@@ -17,7 +17,13 @@ For detailed instructions and project information, please see the repository's R
 """
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QVBoxLayout, QWidget, QListView, QAbstractItemView, QLineEdit
+from PySide6.QtWidgets import (
+    QVBoxLayout,
+    QWidget,
+    QListView,
+    QAbstractItemView,
+    QLineEdit,
+)
 
 import logging
 from typing import TYPE_CHECKING
@@ -31,9 +37,17 @@ if TYPE_CHECKING:
 
 
 class FileTree(QWidget):
-
-    def __init__(self, parent, proxy_model, minimum_width,
-                 clicked_callback, text_changed_callback, context_menu_callback):
+    def __init__(
+        self,
+        parent,
+        proxy_model,
+        minimum_width,
+        clicked_callback,
+        text_changed_callback,
+        context_menu_callback,
+        action,
+        back_action,
+    ):
         super().__init__(parent)
 
         # Configuration params
@@ -43,21 +57,22 @@ class FileTree(QWidget):
         self.clicked_callback = clicked_callback
         self.text_changed_callback = text_changed_callback
         self.context_menu_callback = context_menu_callback
+        self.action = action
+        self.back_action = back_action
 
-        if self.parent and hasattr(self.parent, 'font'):
+        if self.parent and hasattr(self.parent, "font"):
             # Apply font from the dialog instance to the label
             self.setFont(self.parent.font())
 
-        self.logger = logging.getLogger('file_tree')
+        self.logger = logging.getLogger("file_tree")
 
         self.settings = Settings(parent=self)
-        self.settings.value_changed.connect(
-            lambda v: self.settings_update_handler(v))
+        self.settings.value_changed.connect(lambda v: self.settings_update_handler(v))
 
         self.theme_helper = ThemeHelper()
 
         # Load lexemes for the selected language and scope
-        self.lexemes = Lexemes(self.settings.app_language, default_scope='common')
+        self.lexemes = Lexemes(self.settings.app_language, default_scope="common")
 
         # File tree related objects
         self.list_view = None  # type: Union[QListView, None]
@@ -65,13 +80,34 @@ class FileTree(QWidget):
 
         self.init_ui()
 
+    class CustomListView(QListView):
+        def __init__(self, action=lambda: (), parent=None, back_action=lambda: ()):
+            super().__init__(parent)
+            self.setContextMenuPolicy(Qt.CustomContextMenu)
+
+            self.action = action
+            self.back_action = back_action
+
+        def keyPressEvent(self, event):
+            if (
+                event.key() == Qt.Key_Return or event.key() == Qt.Key_Right
+            ):  # Check if Enter key is pressed
+                current_index = self.currentIndex()
+                if current_index.isValid():
+                    self.action(current_index)
+            if event.key() == Qt.Key_Left:
+                self.back_action()
+            super().keyPressEvent(event)
+
     def init_ui(self):
         """
         Initialize the UI elements for the file tree view.
         """
 
         # Either QTreeView(self) or QListView(self) are working fine
-        self.list_view = QListView(self)
+        self.list_view = self.CustomListView(
+            parent=self, action=self.action, back_action=self.back_action
+        )
         self.list_view.setModel(self.proxy_model)
         # Apply font from the main window to the widget
         self.list_view.setFont(self.font())
@@ -88,7 +124,9 @@ class FileTree(QWidget):
 
         # Ensure the context menu callback exists before connecting
         if callable(self.context_menu_callback):
-            self.list_view.customContextMenuRequested.connect(self.context_menu_callback)
+            self.list_view.customContextMenuRequested.connect(
+                self.context_menu_callback
+            )
 
         # Setup filter input
         self.tree_filter = QLineEdit(self, textChanged=self.text_changed_callback)
@@ -96,22 +134,31 @@ class FileTree(QWidget):
         self.tree_filter.setReadOnly(False)
         self.tree_filter.setMaxLength(512)
         self.tree_filter.setMinimumWidth(self.minimum_width)
-        self.tree_filter.setPlaceholderText(self.lexemes.get('tree_filter_input_placeholder_text'))
-        self.tree_filter.setAccessibleDescription(self.lexemes.get('tree_filter_input_accessible_desc'))
+        self.tree_filter.setPlaceholderText(
+            self.lexemes.get("tree_filter_input_placeholder_text")
+        )
+        self.tree_filter.setAccessibleDescription(
+            self.lexemes.get("tree_filter_input_accessible_desc")
+        )
 
         # Layout configuration
         tree_layout = QVBoxLayout(self)
         tree_layout.setContentsMargins(0, 0, 0, 0)
-        tree_layout.setSizeConstraint(QVBoxLayout.SizeConstraint.SetMinimumSize)  # Ensure proper resizing
+        tree_layout.setSizeConstraint(
+            QVBoxLayout.SizeConstraint.SetMinimumSize
+        )  # Ensure proper resizing
         tree_layout.addWidget(self.tree_filter)
         tree_layout.addWidget(self.list_view)
 
         # Apply the stylesheet
-        self.setStyleSheet(self.theme_helper.get_css('tree_view'))
+        self.setStyleSheet(self.theme_helper.get_css("tree_view"))
 
     def get_list_view(self) -> QListView:
         # Return the list view component.
         return self.list_view
+
+    def get_tree_filter(self) -> QLineEdit:
+        return self.tree_filter
 
     def settings_update_handler(self, data: dict) -> None:
         """
@@ -124,25 +171,31 @@ class FileTree(QWidget):
             data (dict): Dictionary of settings updates, e.g., {"show_deleted_files": True}
         """
 
-        self.logger.debug(f'Settings update handler is processing: {data}')
+        self.logger.debug(f"Settings update handler is processing: {data}")
 
         try:
-            if 'app_theme' in data:
+            if "app_theme" in data:
                 # Re-apply styles to the elements
-                self.setStyleSheet(self.theme_helper.get_css('tree_view'))
+                self.setStyleSheet(self.theme_helper.get_css("tree_view"))
 
-            if 'app_font_size' in data:
+            if "app_font_size" in data:
                 # Apply the main window's font to all relevant widgets
                 self.setFont(self.parent.font())
                 self.list_view.setFont(self.font())
                 self.tree_filter.setFont(self.font())
 
-            if 'app_language' in data:
+            if "app_language" in data:
                 # Reload lexemes for the selected language and scope
-                self.lexemes = Lexemes(self.settings.app_language, default_scope='common')
+                self.lexemes = Lexemes(
+                    self.settings.app_language, default_scope="common"
+                )
                 # Update dependent object lexemes
-                self.tree_filter.setPlaceholderText(self.lexemes.get('tree_filter_input_placeholder_text'))
-                self.tree_filter.setAccessibleDescription(self.lexemes.get('tree_filter_input_accessible_desc'))
+                self.tree_filter.setPlaceholderText(
+                    self.lexemes.get("tree_filter_input_placeholder_text")
+                )
+                self.tree_filter.setAccessibleDescription(
+                    self.lexemes.get("tree_filter_input_accessible_desc")
+                )
 
         except RuntimeError as e:
             self.logger.warning(f"Error occurred while updating settings: {e}")
