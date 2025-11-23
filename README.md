@@ -3,7 +3,7 @@
 TagIT je orodje, namenjeno **dostopnemu iskanju po vsebini** za slepe in slabovidne.**AI-tagging** vsebine omogoča hitro navigacijo po datotekah in odstavkih na osnovi ključnih pojmov, npr. #kvadratne_funkcije in #enačbe, ter dostop do specifičnih vsebinskih sklopov znotraj dokumenta.
 ---
 
-DEMO: https://www.youtube.com/watch?v=OcX_CrKsx74
+DEMO: https://www.youtube.com/watch?v=CuzLleSLDQY
 
 ## Glavni cilj
 
