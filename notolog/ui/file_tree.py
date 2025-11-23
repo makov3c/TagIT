@@ -116,12 +116,21 @@ class FileTree(QWidget):
         self.init_ui()
 
     class CustomListView(QListView):
-        def __init__(self, action=lambda: (), parent=None, back_action=lambda: ()):
+        def __init__(
+            self,
+            action=lambda: (),
+            parent=None,
+            back_action=lambda: (),
+            haction=lambda: (),
+            hback_action=lambda: (),
+        ):
             super().__init__(parent)
             self.setContextMenuPolicy(Qt.CustomContextMenu)
 
             self.action = action
             self.back_action = back_action
+            self.haction = haction
+            self.hback_action = hback_action
             self.name = "filetree"
 
         def changeName(self, name):
@@ -132,14 +141,16 @@ class FileTree(QWidget):
                 event.key() == Qt.Key_Return or event.key() == Qt.Key_Right
             ):  # Check if Enter key is pressed
                 print(self.name)
-                if self.name == "hashtag":
-                    self.haction(current_index)
+                if self.name == "tagmodel":
+                    current_index = self.currentIndex()
+                    if current_index.isValid():
+                        self.haction(current_index)
                 else:
                     current_index = self.currentIndex()
                     if current_index.isValid():
                         self.action(current_index)
             if event.key() == Qt.Key_Left:
-                if self.name == "hashtag":
+                if self.name == "tagmodel":
                     self.hback_action(current_index)
                 else:
                     self.back_action()
@@ -156,7 +167,11 @@ class FileTree(QWidget):
 
         # Either QTreeView(self) or QListView(self) are working fine
         self.list_view = self.CustomListView(
-            parent=self, action=self.action, back_action=self.back_action
+            parent=self,
+            action=self.action,
+            back_action=self.back_action,
+            haction=self.haction,
+            hback_action=self.hback_action,
         )
         self.list_view.setModel(self.proxy_model)
         # Apply font from the main window to the widget

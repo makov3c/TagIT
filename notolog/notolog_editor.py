@@ -1054,12 +1054,12 @@ class NotologEditor(QMainWindow):
         if text:
             if re.match(r"\s*#.*", text):
                 self.filter_mode.val = "hashtag"
-                print(tags_db.get_chunks_by_tag("example"))
+                self.tags = tags_db.get_chunks_by_tag(text[1:])
                 self.file_tree.change_model(
                     self.TagModel(
                         [
-                            f"{fn} {sidx}-{eidx}"
-                            for (fn, sidx, eidx) in tags_db.get_chunks_by_tag(text[1:])
+                            f"{os.path.basename(chunk['file_path'])} {chunk['start']}-{chunk['end']}"
+                            for chunk in self.tags
                         ]
                     ),
                     "tagmodel",
@@ -1189,8 +1189,6 @@ class NotologEditor(QMainWindow):
         """
         Context menu at file tree view.
         """
-
-        print("LKJFLKSJFLKSJF")
 
         self.logger.debug("Context menu for %s" % tree_view)
 
@@ -2966,13 +2964,8 @@ class NotologEditor(QMainWindow):
     def action_nav_jump_to_file(self, index) -> None:
         editor = self.get_edit_widget()
         cursor = editor.textCursor()
-        print(self.tree_view.model.data(index))
-        block = editor.document().findBlockByNumber(index.row - 1)
-        if not block.isValid():
-            return  # Bad line number
-
-        position = block.position() + (index.col - 1)
-        cursor.setPosition(position)
+        chunk = self.tags[index.row()]
+        cursor.setPosition(chunk["start"])
         editor.setTextCursor(cursor)
         editor.setFocus()
 
@@ -3029,7 +3022,9 @@ class NotologEditor(QMainWindow):
         if not current_path:
             return
 
-        parent_path = os.path.dirname(current_path)  # absolutni path starša
+        parent_path = os.path.dirname(
+            os.path.abspath(current_path)
+        )  # absolutni path starša
 
         # Če smo že na root-u, ne delaj nič
         if parent_path == current_path:
