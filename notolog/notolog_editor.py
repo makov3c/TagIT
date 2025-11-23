@@ -1058,10 +1058,11 @@ class NotologEditor(QMainWindow):
             if re.match(r"\s*#.*", text):
                 self.filter_mode.val = "hashtag"
                 self.tags = tags_db.get_chunks_by_tag(text[1:])
+                # print(len(self.tags))
                 self.file_tree.change_model(
                     self.TagModel(
                         [
-                            f"{os.path.basename(chunk['file_path'])} {chunk['start']}-{chunk['end']}"
+                            f"{chunk['name']}: {os.path.basename(chunk['file_path'])} {chunk['start']}-{chunk['end']}"
                             for chunk in self.tags
                         ]
                     ),

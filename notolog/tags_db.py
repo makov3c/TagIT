@@ -13,6 +13,7 @@ def load_chunk_preview(file_path: str, start: int, length: int = 20) -> str:
     except Exception:
         return "<error reading file>"
 
+
 def get_connection():
     return sqlite3.connect(DB_PATH)
 
@@ -112,59 +113,71 @@ def get_tags_for_chunk(chunk_id: int):
         WHERE chunk_tags.chunk_id = ?
         ORDER BY tags.name ASC
         """,
-        (chunk_id,)
+        (chunk_id,),
     )
     rows = cur.fetchall()
     conn.close()
     return rows
 
-def find_tag_by_name(name: str):
+
+def find_tags_by_name(name: str):
     """
     Poišče tag po imenu.
     Vrne id in ime taga ali None, če taga ni.
     """
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("SELECT id, name FROM tags WHERE name = ?", (name,))
-    row = cur.fetchone()
+    print(f"'{name.strip()}'", name == "")
+    if name == "":
+        cur.execute("SELECT id, name FROM tags")
+    else:
+        cur.execute("SELECT id, name FROM tags WHERE name LIKE ?", ("%" + name + "%",))
+    row = cur.fetchall()
     conn.close()
     return row  # (id, name) ali None
 
 
 def get_chunks_by_tag(tag_name: str):
-    tag = find_tag_by_name(tag_name)
+    tag = find_tags_by_name(tag_name)
     if not tag:
         return []
 
     tag_id = tag[0]
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT chunks.id, chunks.file_path, chunks.start_idx, chunks.end_idx
-        FROM chunks
-        JOIN chunk_tags ON chunks.id = chunk_tags.chunk_id
-        WHERE chunk_tags.tag_id = ?
-        ORDER BY chunks.file_path, chunks.start_idx
-        """,
-        (tag_id,)
-    )
-    rows = cur.fetchall()
+    rows = []
+    for tag_id, _ in tag:
+        cur.execute(
+            """
+            SELECT chunks.id, chunks.file_path, chunks.start_idx, chunks.end_idx, tags.name
+            FROM chunks
+            JOIN chunk_tags ON chunks.id = chunk_tags.chunk_id
+            JOIN tags ON chunk_tags.tag_id = tags.id
+            WHERE chunk_tags.tag_id = ?
+            ORDER BY chunks.file_path, chunks.start_idx
+            """,
+            (tag_id,),
+        )
+        rows += cur.fetchall()
     conn.close()
 
     results = []
-    for chunk_id, file_path, start_idx, end_idx in rows:
+    for chunk_id, file_path, start_idx, end_idx, name in rows:
         text_preview = load_chunk_preview(file_path, start_idx, 20)
 
-        results.append({
-            "id": chunk_id,
-            "file_path": file_path,
-            "start": start_idx,
-            "end": end_idx,
-            "preview": text_preview,
-        })
+        results.append(
+            {
+                "id": chunk_id,
+                "file_path": file_path,
+                "start": start_idx,
+                "end": end_idx,
+                "preview": text_preview,
+                "name": name,
+            }
+        )
 
     return results
+
 
 if __name__ == "__main__":
     init_db()
