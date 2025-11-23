@@ -2964,26 +2964,23 @@ class NotologEditor(QMainWindow):
             self.set_current_path(file_path)
 
     def action_nav_up_folder(self) -> None:
-        """
-        Action: Open upper folder from the tree view.
-        """
-
-        # Save any unsaved changes
+        """Navigate one folder up in the tree view."""
         self.save_active_file(clear_after=False)
 
-        """
-        Get file path by index:
-            file_path = self.file_model.filePath(index)  # no proxy model
-        Also, the file path can be obtained like this:
-            file_path = self.tree_view.model().filePath(index)
-        * https://doc.qt.io/qt-6/qsortfilterproxymodel.html#mapToSource
-        """
-        self.logger.debug(
-            "Dir selected within the tree '%s'" % self.get_current_file_path()
-        )
-        parent_folder = os.path.basename(os.path.dirname(self.get_tree_active_dir()))
-        print(parent_folder)
-        self.set_current_path(parent_folder)
+        current_path = self.get_tree_active_dir()  # absolutni path
+        if not current_path:
+            return
+
+        parent_path = os.path.dirname(current_path)  # absolutni path starša
+
+        # Če smo že na root-u, ne delaj nič
+        if parent_path == current_path:
+            return
+
+        self.logger.debug(f"Navigating to parent folder: {parent_path}")
+
+        self.set_current_path(parent_path)
+
 
     def load_content(self, header: FileHeader, content: str) -> None:
         """
