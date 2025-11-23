@@ -3,7 +3,7 @@
  */
 QListView {
     color: #f8f8f3;
-    background-color: #55595F;
+    background-color: #000000;
 }
 QListView::item:hover {
     color: #333333;
