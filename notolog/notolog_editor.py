@@ -2981,7 +2981,6 @@ class NotologEditor(QMainWindow):
 
         self.set_current_path(parent_path)
 
-
     def load_content(self, header: FileHeader, content: str) -> None:
         """
         Helper: Load content either into VIEW or EDIT areas.
